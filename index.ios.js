@@ -29,21 +29,21 @@ const round = (x, base) => {
   } else {
     return upper * sign;
   }
-}
+};
 
 const range = (start, end, interval=1) => {
     let ret = [];
     for (let i = start; i < end; i += interval) {
-        ret.push(i);
+      ret.push(i);
     }
     return ret;
-}
+  };
 
 class InfinitePicker extends React.Component {
   constructor(props) {
     super(props);
     this.state = {
-      currentVal: 100,
+      currentItem: 0,
       interval: 1,
       bufferSize: 50,
     };
@@ -54,22 +54,56 @@ class InfinitePicker extends React.Component {
       itemsToShow: 5,
     };
     this.config.itemHeight = this.config.height / this.config.itemsToShow;
-    this._panY = new Animated.Value(
-        -(this.state.currentVal - parseInt(this.config.itemsToShow / 2)) * this.config.itemHeight);
+    this._panY = new Animated.Value(this.centerItemToOffset(this.state.currentItem));
+
+    const getIdx = (x, y) => {
+      const z = x % y;
+      if (z < 0) {
+        return z + y;
+      }
+      return z;
+    };
+
+    const updatePanels = offset => {
+      const item = this.offsetToCenterItem(offset);
+      const halfPage = parseInt(this.state.bufferSize / 2);
+      range(item - halfPage, item + halfPage).map(eachItem => {
+        const idx = getIdx(eachItem, this.state.bufferSize);
+        const pos = this.itemToPos(eachItem);
+        if (this._itemPos[idx]._value != pos) {
+          this._itemPos[idx].setValue(pos);
+        }
+      });
+    };
+    this._itemPos = range(0, this.state.bufferSize).map(idx => (
+      new Animated.Value(0)
+    ));
+    updatePanels(this._panY._value);
+
+    this._panY.addListener(ev => updatePanels(ev.value));
   }
 
-  posToVal(pos) {
-    const val = parseInt(-pos / this.config.itemHeight + parseInt(this.config.itemsToShow / 2));
-    console.log('posToVal', pos, val);
-    return val;
+  centerItemToOffset(item) {
+    return -1 * this.itemToPos(item - parseInt(this.config.itemsToShow / 2));
   }
 
-  setCurrentVal() {
-    const val = this.posToVal(this._panY._value + this._panY._offset);
-    this.setState({
-      currentVal: val
-    });
+  itemToPos(item) {
+    const pos = item * this.config.itemHeight;
+    // console.log('itemToPos', item, pos);
+    return pos;
   }
+
+  offsetToCenterItem(pos) {
+    const item = parseInt(-pos / this.config.itemHeight + parseInt(this.config.itemsToShow / 2));
+    return item;
+  }
+
+  //setCurrentVal() {
+  //  const val = this.posToVal(this._panY._value + this._panY._offset);
+  //  this.setState({
+  //    currentVal: val
+  //  });
+  //}
 
   componentWillMount() {
     this._panResponder = PanResponder.create({
@@ -88,19 +122,19 @@ class InfinitePicker extends React.Component {
         this._panY.setOffset(this._panY._value);
         this._panY.setValue(0);
       },
-      onPanResponderMove: Animated.event([null, {dy: this._panY}]),
+      onPanResponderMove: Animated.event([null, { dy: this._panY }]),
       onPanResponderTerminationRequest: (evt, gestureState) => true,
       onPanResponderRelease: (evt, gestureState) => {
         // The user has released all touches while this view is the
         // responder. This typically means a gesture has succeeded
 
         const spring = () => {
-          const currVal = this._panY._value + this._panY._offset;
-          const target = round(currVal, this.config.itemHeight);
+          const currPos = this._panY._value + this._panY._offset;
+          const target = round(currPos, this.config.itemHeight);
           Animated.spring(this._panY, {
-            toValue: target - this._panY._offset
-          }).start(this.setCurrentVal.bind(this));
-        }
+            toValue: target - this._panY._offset,
+          }).start(/*this.setCurrentVal.bind(this)*/);
+        };
 
         let velocity = 0;
         if (gestureState.vy < 0.5 && gestureState.vy > -0.5) {
@@ -113,27 +147,27 @@ class InfinitePicker extends React.Component {
           velocity = -1;
         }
 
-        const currVal = this._panY._value + this._panY._offset;
-        const target = round(currVal + gestureState.vy * 300, this.config.itemHeight);
+        const currPos = this._panY._value + this._panY._offset;
+        const target = round(currPos + gestureState.vy * 300, this.config.itemHeight);
         Animated.timing(this._panY, {
             toValue: target - this._panY._offset,
-          easing: Easing.out(Easing.poly(5)),
-          duration: 750,
-            }).start(this.setCurrentVal.bind(this));
-        const targetVal = this.posToVal(target);
-        let newBufferSize;
-        if (this.state.currentVal + this.state.bufferSize < targetVal) {
-          newBufferSize = (targetVal - this.state.currentVal) * 2
-        }
-        if (this.state.currentVal - this.state.bufferSize > targetVal) {
-          newBufferSize = (this.state.currentVal - targetVal) * 2;
-        }
-        if (newBufferSize) {
-          console.log('new buffer size', newBufferSize);
-          this.setState({
-            bufferSize: newBufferSize,
-          });
-        }
+            easing: Easing.out(Easing.poly(5)),
+            duration: 750,
+          }).start(/*this.setCurrentVal.bind(this)*/);
+        //const targetVal = this.posToItem(target);
+        //let newBufferSize;
+        //if (this.state.currentItem + this.state.bufferSize < targetVal) {
+        //  newBufferSize = (targetVal - this.state.currentVal) * 2
+        //}
+        //if (this.state.currentVal - this.state.bufferSize > targetVal) {
+        //  newBufferSize = (this.state.currentVal - targetVal) * 2;
+        //}
+        //if (newBufferSize) {
+        //  console.log('new buffer size', newBufferSize);
+        //  this.setState({
+        //    bufferSize: newBufferSize,
+        //  });
+        //}
       },
       onPanResponderTerminate: (evt, gestureState) => {
         // Another component has become the responder, so this gesture
@@ -160,10 +194,8 @@ class InfinitePicker extends React.Component {
           position: 'absolute',
           top: this._panY,
         }}>
-            { range(this.state.currentVal - this.state.bufferSize,
-              this.state.currentVal + this.state.bufferSize,
-              this.state.interval).map(v => (
-                <View key={v} style={{
+            { range(0, this.state.bufferSize).map(idx => (
+                <Animated.View key={idx} style={{
                   flex: 1,
                   flexDirection: 'row',
                   height: this.config.itemHeight,
@@ -172,12 +204,12 @@ class InfinitePicker extends React.Component {
                   borderColor: '#cccccc',
                   position: 'absolute',
                   backgroundColor: 'red',
-                  top: v * this.config.itemHeight,
+                  top: this._itemPos[idx],
                   width: this.config.width,
 
                 }}>
-                  <Text>{v}</Text>
-                </View>
+                  <Text>{idx}</Text>
+                </Animated.View>
              ))
             }
         </Animated.View>
@@ -192,7 +224,7 @@ export default class demo extends Component {
         <View style={ styles.container }>
           <InfinitePicker/>
         </View>
-        )
+        );
   }
 }
 
