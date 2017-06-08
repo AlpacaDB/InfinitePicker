@@ -43,13 +43,13 @@ class PickerPanel extends React.Component {
   constructor(props) {
     super(props);
     this.state = {
-      itemNo: null,
+      slot: null,
     };
   }
 
   render() {
-    const renderer = this.props.renderer || ((itemNo) => (<Text>{itemNo}</Text>));
-    return renderer(this.state.itemNo);
+    const renderer = this.props.renderer || ((slot) => (<Text>{slot}</Text>));
+    return renderer(this.state.slot);
   }
 }
 
@@ -57,14 +57,20 @@ class InfinitePicker extends React.Component {
   constructor(props) {
     super(props);
     this.state = {
-      currentItem: 0,
-      interval: 1,
+      currentItem: props.initialSlot || 0,
       bufferSize: 50,
     };
 
-    this._panelHeight = props.height / props.itemsToShow;
+    this._panelHeight = props.height / props.panelsToShow;
     this._panY = new Animated.Value(this.centerItemToOffset(this.state.currentItem));
 
+    this._panelPos = range(0, this.state.bufferSize).map(idx => (
+      new Animated.Value(0)
+    ));
+    this._panels = new Array(this.bufferSize);
+  }
+
+  componentDidMount() {
     const getIdx = (x, y) => {
       const z = x % y;
       if (z < 0) {
@@ -79,25 +85,31 @@ class InfinitePicker extends React.Component {
       range(item - halfPage, item + halfPage).map(eachItem => {
         const idx = getIdx(eachItem, this.state.bufferSize);
         const pos = this.itemToPos(eachItem);
-        if (this._itemPos[idx]._value != pos) {
-          this._itemPos[idx].setValue(pos);
+        if (this._panelPos[idx]._value != pos) {
+          this._panelPos[idx].setValue(pos);
           if (this._panels[idx]) {
-            this._panels[idx].setState({ itemNo: eachItem });
+            this._panels[idx].setState({ slot: eachItem });
           }
         }
       });
+      const callback = this.props.onValueChange;
+      if (callback) {
+        callback(item);
+      }
     };
-    this._itemPos = range(0, this.state.bufferSize).map(idx => (
-      new Animated.Value(0)
-    ));
-    this._panels = new Array(this.bufferSize);
     updatePanels(this._panY._value);
 
     this._panY.addListener(ev => updatePanels(ev.value));
   }
 
+  get selectedValue() {
+    const offset = this._panY._value + this._panY._offset;
+    const item = this.offsetToCenterItem(offset);
+    return item;
+  }
+
   centerItemToOffset(item) {
-    return -1 * this.itemToPos(item - parseInt(this.props.itemsToShow / 2));
+    return -1 * this.itemToPos(item - parseInt(this.props.panelsToShow / 2));
   }
 
   itemToPos(item) {
@@ -111,7 +123,7 @@ class InfinitePicker extends React.Component {
   }
 
   offsetToCenterItem(pos) {
-    const item = parseInt(-pos / this._panelHeight + parseInt(this.props.itemsToShow / 2));
+    const item = parseInt(-pos / this._panelHeight + parseInt(this.props.panelsToShow / 2));
     return item;
   }
 
@@ -207,14 +219,12 @@ class InfinitePicker extends React.Component {
                   borderColor: '#cccccc',
                   position: 'absolute',
                   backgroundColor: 'red',
-                  top: this._itemPos[idx],
+                  top: this._panelPos[idx],
                   width: this.props.width,
 
                 }}>
                   <PickerPanel ref={e => {
                     this._panels[idx] = e;
-                    this._panels[idx].setState({
-                      itemNo: this.posToItem(this._itemPos[idx]._value), });
                   }} renderer={this.props.panelRenderer}/>
                 </Animated.View>
              ))
@@ -228,10 +238,23 @@ class InfinitePicker extends React.Component {
 InfinitePicker.defaultProps = {
   width: 360,
   height: 400,
-  itemsToShow: 5,
+  panelsToShow: 5,
 };
 
-export default class demo extends Component {
+export default class App extends Component {
+  constructor(props) {
+    super(props);
+    this.state = {
+      current: 0,
+    };
+  }
+
+  onChange(val) {
+    this.setState({
+      current: val,
+    });
+  }
+
   render() {
     return (
         <View style={ styles.container }>
@@ -240,7 +263,12 @@ export default class demo extends Component {
               borderWidth: 1,
               borderColor: 'gray',
             }}
+            height={300}
+            panelsToShow={5}
+            initialSlot={100}
+            onValueChange={this.onChange.bind(this)}
             panelRenderer={(i) => (<Text>Item = {i}</Text>)}/>
+          <Text>SelectedValue = {this.state.current}</Text>
         </View>
         );
   }
@@ -265,4 +293,4 @@ const styles = StyleSheet.create({
   },
 });
 
-AppRegistry.registerComponent('demo', () => demo);
+AppRegistry.registerComponent('demo', () => App);
