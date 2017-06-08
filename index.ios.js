@@ -39,7 +39,7 @@ const range = (start, end, interval=1) => {
     return ret;
   };
 
-class PickerPanel extends React.Component {
+export class PickerPanel extends React.Component {
   constructor(props) {
     super(props);
     this.state = {
@@ -53,7 +53,7 @@ class PickerPanel extends React.Component {
   }
 }
 
-class InfinitePicker extends React.Component {
+export class InfinitePicker extends React.Component {
   constructor(props) {
     super(props);
     this.state = {
@@ -62,7 +62,7 @@ class InfinitePicker extends React.Component {
 
     this._panelHeight = props.height / props.panelsToShow;
     const slot = props.initialSlot || 0;
-    this._panY = new Animated.Value(this.centerSlotToOffset(slot));
+    this._panY = new Animated.Value(this.centerSlotToScrollTop(slot));
 
     this._panelPos = range(0, this.state.bufferSize).map(idx => (
       new Animated.Value(0)
@@ -79,17 +79,15 @@ class InfinitePicker extends React.Component {
       return z;
     };
 
-    const updatePanels = offset => {
-      const centerSlot = this.offsetToCenterSlot(offset);
+    const updatePanels = scrollTop => {
+      const centerSlot = this.scrollTopToCenterSlot(scrollTop);
       const halfPage = parseInt(this.state.bufferSize / 2);
       range(centerSlot - halfPage, centerSlot + halfPage).map(eachSlot => {
         const idx = getIdx(eachSlot, this.state.bufferSize);
         const pos = this.slotToPos(eachSlot);
         if (this._panelPos[idx]._value != pos) {
           this._panelPos[idx].setValue(pos);
-          if (this._panels[idx]) {
-            this._panels[idx].setState({ slot: eachSlot });
-          }
+          this._panels[idx].setState({ slot: eachSlot });
         }
       });
       const callback = this.props.onValueChange;
@@ -103,8 +101,7 @@ class InfinitePicker extends React.Component {
   }
 
   get selectedValue() {
-    const offset = this._panY._value + this._panY._offset;
-    const slot = this.offsetToCenterSlot(offset);
+    const slot = this.scrollTopToCenterSlot(this.scrollTop);
     return slot;
   }
 
@@ -112,8 +109,13 @@ class InfinitePicker extends React.Component {
     return this._panY._value + this._panY._offset;
   }
 
-  centerSlotToOffset(slot) {
+  centerSlotToScrollTop(slot) {
     return -1 * this.slotToPos(slot - parseInt(this.props.panelsToShow / 2));
+  }
+
+  scrollTopToCenterSlot(scrollTop) {
+    const slot = parseInt(-scrollTop / this._panelHeight + parseInt(this.props.panelsToShow / 2));
+    return slot;
   }
 
   slotToPos(slot) {
@@ -123,11 +125,6 @@ class InfinitePicker extends React.Component {
 
   posToSlot(pos) {
     const slot = pos / this._panelHeight;
-    return slot;
-  }
-
-  offsetToCenterSlot(pos) {
-    const slot = parseInt(-pos / this._panelHeight + parseInt(this.props.panelsToShow / 2));
     return slot;
   }
 
@@ -155,11 +152,11 @@ class InfinitePicker extends React.Component {
         // responder. This typically means a gesture has succeeded
 
         const spring = () => {
-          const currPos = this._panY._value + this._panY._offset;
+          const currPos = this.scrollTop;
           const target = round(currPos, this._panelHeight);
           Animated.spring(this._panY, {
             toValue: target - this._panY._offset,
-          }).start(/*this.setCurrentVal.bind(this)*/);
+          }).start();
         };
 
         let velocity = 0;
@@ -173,7 +170,7 @@ class InfinitePicker extends React.Component {
           velocity = -1;
         }
 
-        const currPos = this._panY._value + this._panY._offset;
+        const currPos = this.scrollTop;
         const vy = gestureState.vy;
         const target = round(currPos + vy * Math.abs(vy) * 300, this._panelHeight);
         Animated.timing(this._panY, {
