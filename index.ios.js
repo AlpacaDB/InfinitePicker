@@ -6,6 +6,7 @@
 
 import React, { Component } from 'react';
 import {
+  Animated,
   AppRegistry,
   StyleSheet,
   Text,
@@ -13,21 +14,47 @@ import {
 } from 'react-native';
 import InfinitePicker from './picker';
 
+const range = (start, end, interval=1) => {
+  let ret = [];
+  for (let i = start; i < end; i += interval) {
+    ret.push(i);
+  }
+  return ret;
+};
+
+const unsignedMod = (x, y) => {
+  const z = x % y;
+  if (z < 0) {
+    return z + y;
+  }
+  return z;
+};
+
 export default class App extends Component {
   constructor(props) {
     super(props);
     this.state = {
       current: 0,
     };
+
+    this._pickerPanels = 50;
+
+    this.viewportAnim = range(0, this._pickerPanels).map(idx => (
+      new Animated.Value(0)
+    ));
   }
 
-  onChange(val) {
+  onChange(slot, visibles) {
     this.setState({
-      current: val,
+      current: slot,
     });
+    for (let item of visibles) {
+      this.viewportAnim[unsignedMod(item.slot, this._pickerPanels)].setValue(item.viewportPos);
+    }
   }
 
   renderPanel(slot, { width, height }) {
+
     return (
         <View style={{
           flex: 1,
@@ -37,7 +64,12 @@ export default class App extends Component {
           borderColor: '#cccccc',
           backgroundColor: '#ffcccc',
         }}>
-          <Text>Slot = {slot}</Text>
+          <Animated.Text style={{
+            opacity: this.viewportAnim[unsignedMod(slot, this._pickerPanels)].interpolate({
+              inputRange: [-3, 0, 3],
+              outputRange: [0, 1, 0],
+            }),
+          }}>Slot = {slot}</Animated.Text>
         </View>
         );
   }

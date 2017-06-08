@@ -86,7 +86,13 @@ export default class InfinitePicker extends React.Component {
       return z;
     };
 
+    let lastCall = 0;
     const updatePanels = scrollTop => {
+      const now = new Date();
+      if (!this._noThrottle && now - lastCall < this.props.changeThrottle) {
+        return;
+      }
+      lastCall = now;
       const centerSlot = this.scrollTopToCenterSlot(scrollTop);
       const halfPage = parseInt(this.state.bufferSize / 2);
       range(centerSlot - halfPage, centerSlot + halfPage).map(eachSlot => {
@@ -99,7 +105,19 @@ export default class InfinitePicker extends React.Component {
       });
       const callback = this.props.onValueChange;
       if (callback) {
-        callback(centerSlot);
+        const centerPos = this.scrollTopToCenterPos(scrollTop);
+        const begin = centerSlot - parseInt(this.props.visiblePanels / 2) - 1;
+        const end = centerSlot + parseInt(this.props.visiblePanels / 2) + 2;
+        const visibles = range(begin, end).map(slot => (
+              {
+                slot: slot,
+                panelIndex: getIdx(slot, this.state.bufferSize),
+                viewportPos: (centerPos -
+                  (this.slotToPos(slot) + this._panelHeight / 2)
+                  ) / this._panelHeight,
+              }
+            ));
+        callback(centerSlot, visibles);
       }
     };
     updatePanels(this._panY._value);
@@ -123,6 +141,10 @@ export default class InfinitePicker extends React.Component {
   scrollTopToCenterSlot(scrollTop) {
     const slot = parseInt(-scrollTop / this._panelHeight + parseInt(this.props.visiblePanels / 2));
     return slot;
+  }
+
+  scrollTopToCenterPos(scrollTop) {
+    return -scrollTop + this._panelHeight * (this.props.visiblePanels / 2);
   }
 
   slotToPos(slot) {
@@ -180,11 +202,12 @@ export default class InfinitePicker extends React.Component {
         const currPos = this.scrollTop;
         const vy = gestureState.vy;
         const target = round(currPos + vy * Math.abs(vy) * 300, this._panelHeight);
+        this._noThrottle = true;
         Animated.timing(this._panY, {
             toValue: target - this._panY._offset,
-            easing: Easing.out(Easing.poly(5)),
+            easing: Easing.out(Easing.circle),
             duration: 750,
-          }).start();
+          }).start(() => {this._noThrottle = false;});
       },
       onPanResponderTerminate: (evt, gestureState) => {
         // Another component has become the responder, so this gesture
@@ -239,4 +262,5 @@ InfinitePicker.defaultProps = {
   width: 360,
   height: 400,
   visiblePanels: 5,
+  changeThrottle: 50,
 };
