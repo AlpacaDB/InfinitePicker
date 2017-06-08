@@ -57,12 +57,12 @@ class InfinitePicker extends React.Component {
   constructor(props) {
     super(props);
     this.state = {
-      currentItem: props.initialSlot || 0,
       bufferSize: 50,
     };
 
     this._panelHeight = props.height / props.panelsToShow;
-    this._panY = new Animated.Value(this.centerItemToOffset(this.state.currentItem));
+    const slot = props.initialSlot || 0;
+    this._panY = new Animated.Value(this.centerSlotToOffset(slot));
 
     this._panelPos = range(0, this.state.bufferSize).map(idx => (
       new Animated.Value(0)
@@ -80,21 +80,21 @@ class InfinitePicker extends React.Component {
     };
 
     const updatePanels = offset => {
-      const item = this.offsetToCenterItem(offset);
+      const centerSlot = this.offsetToCenterSlot(offset);
       const halfPage = parseInt(this.state.bufferSize / 2);
-      range(item - halfPage, item + halfPage).map(eachItem => {
-        const idx = getIdx(eachItem, this.state.bufferSize);
-        const pos = this.itemToPos(eachItem);
+      range(centerSlot - halfPage, centerSlot + halfPage).map(eachSlot => {
+        const idx = getIdx(eachSlot, this.state.bufferSize);
+        const pos = this.slotToPos(eachSlot);
         if (this._panelPos[idx]._value != pos) {
           this._panelPos[idx].setValue(pos);
           if (this._panels[idx]) {
-            this._panels[idx].setState({ slot: eachItem });
+            this._panels[idx].setState({ slot: eachSlot });
           }
         }
       });
       const callback = this.props.onValueChange;
       if (callback) {
-        callback(item);
+        callback(centerSlot);
       }
     };
     updatePanels(this._panY._value);
@@ -104,35 +104,32 @@ class InfinitePicker extends React.Component {
 
   get selectedValue() {
     const offset = this._panY._value + this._panY._offset;
-    const item = this.offsetToCenterItem(offset);
-    return item;
+    const slot = this.offsetToCenterSlot(offset);
+    return slot;
   }
 
-  centerItemToOffset(item) {
-    return -1 * this.itemToPos(item - parseInt(this.props.panelsToShow / 2));
+  get scrollTop() {
+    return this._panY._value + this._panY._offset;
   }
 
-  itemToPos(item) {
-    const pos = item * this._panelHeight;
+  centerSlotToOffset(slot) {
+    return -1 * this.slotToPos(slot - parseInt(this.props.panelsToShow / 2));
+  }
+
+  slotToPos(slot) {
+    const pos = slot * this._panelHeight;
     return pos;
   }
 
-  posToItem(pos) {
-    const item = pos / this._panelHeight;
-    return item;
+  posToSlot(pos) {
+    const slot = pos / this._panelHeight;
+    return slot;
   }
 
-  offsetToCenterItem(pos) {
-    const item = parseInt(-pos / this._panelHeight + parseInt(this.props.panelsToShow / 2));
-    return item;
+  offsetToCenterSlot(pos) {
+    const slot = parseInt(-pos / this._panelHeight + parseInt(this.props.panelsToShow / 2));
+    return slot;
   }
-
-  //setCurrentVal() {
-  //  const val = this.posToVal(this._panY._value + this._panY._offset);
-  //  this.setState({
-  //    currentVal: val
-  //  });
-  //}
 
   componentWillMount() {
     this._panResponder = PanResponder.create({
