@@ -49,10 +49,25 @@ export class PickerPanel extends React.Component {
 
   render() {
     const renderer = this.props.renderer || ((slot) => (<Text>{slot}</Text>));
-    return renderer(this.state.slot);
+    return renderer(this.state.slot, this.props);
   }
 }
 
+/*
+ * Terminology:
+ *   panel: physical view component that rotates as scrolls
+ *   slot: logical item number, increasing towards bottom in screen
+ *   scrollTop: absolute vertical position (scroll down -> higher value)
+ *
+ *
+ * props:
+ *   style: outer container view style
+ *   width: component width
+ *   height: component height
+ *   visiblePanels: (default 5) number of panels visible
+ *   initialSlot: (default 0) initial slot value to be selected
+ *   panelRenderer (slot, {width, height}) => {}: panel rendering function
+ */
 export class InfinitePicker extends React.Component {
   constructor(props) {
     super(props);
@@ -60,7 +75,7 @@ export class InfinitePicker extends React.Component {
       bufferSize: 50,
     };
 
-    this._panelHeight = props.height / props.panelsToShow;
+    this._panelHeight = props.height / props.visiblePanels;
     const slot = props.initialSlot || 0;
     this._panY = new Animated.Value(this.centerSlotToScrollTop(slot));
 
@@ -110,11 +125,11 @@ export class InfinitePicker extends React.Component {
   }
 
   centerSlotToScrollTop(slot) {
-    return -1 * this.slotToPos(slot - parseInt(this.props.panelsToShow / 2));
+    return -1 * this.slotToPos(slot - parseInt(this.props.visiblePanels / 2));
   }
 
   scrollTopToCenterSlot(scrollTop) {
-    const slot = parseInt(-scrollTop / this._panelHeight + parseInt(this.props.panelsToShow / 2));
+    const slot = parseInt(-scrollTop / this._panelHeight + parseInt(this.props.visiblePanels / 2));
     return slot;
   }
 
@@ -208,18 +223,17 @@ export class InfinitePicker extends React.Component {
                   flex: 1,
                   flexDirection: 'row',
                   height: this._panelHeight,
-                  alignItems: 'center',
-                  borderTopWidth: 1,
-                  borderColor: '#cccccc',
                   position: 'absolute',
-                  backgroundColor: 'red',
                   top: this._panelPos[idx],
                   width: this.props.width,
 
                 }}>
                   <PickerPanel ref={e => {
                     this._panels[idx] = e;
-                  }} renderer={this.props.panelRenderer}/>
+                  }}
+                  width={this.props.width}
+                  height={this._panelHeight}
+                  renderer={this.props.panelRenderer}/>
                 </Animated.View>
              ))
             }
@@ -232,7 +246,7 @@ export class InfinitePicker extends React.Component {
 InfinitePicker.defaultProps = {
   width: 360,
   height: 400,
-  panelsToShow: 5,
+  visiblePanels: 5,
 };
 
 export default class App extends Component {
@@ -249,6 +263,21 @@ export default class App extends Component {
     });
   }
 
+  renderPanel(slot, { width, height }) {
+    return (
+        <View style={{
+          flex: 1,
+          flexDirection: 'row',
+          alignItems: 'center',
+          borderTopWidth: 1,
+          borderColor: '#cccccc',
+          backgroundColor: '#ffcccc',
+        }}>
+          <Text>Slot = {slot}</Text>
+        </View>
+        );
+  }
+
   render() {
     return (
         <View style={ styles.container }>
@@ -258,10 +287,10 @@ export default class App extends Component {
               borderColor: 'gray',
             }}
             height={300}
-            panelsToShow={5}
+            visiblePanels={5}
             initialSlot={100}
             onValueChange={this.onChange.bind(this)}
-            panelRenderer={(i) => (<Text>Item = {i}</Text>)}/>
+            panelRenderer={this.renderPanel.bind(this)}/>
           <Text>SelectedValue = {this.state.current}</Text>
         </View>
         );
