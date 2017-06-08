@@ -62,12 +62,7 @@ class InfinitePicker extends React.Component {
       bufferSize: 50,
     };
 
-    this.config = {
-      width: 360,
-      height: 400,
-      itemsToShow: 5,
-    };
-    this.config.itemHeight = this.config.height / this.config.itemsToShow;
+    this._panelHeight = props.height / props.itemsToShow;
     this._panY = new Animated.Value(this.centerItemToOffset(this.state.currentItem));
 
     const getIdx = (x, y) => {
@@ -102,22 +97,21 @@ class InfinitePicker extends React.Component {
   }
 
   centerItemToOffset(item) {
-    return -1 * this.itemToPos(item - parseInt(this.config.itemsToShow / 2));
+    return -1 * this.itemToPos(item - parseInt(this.props.itemsToShow / 2));
   }
 
   itemToPos(item) {
-    const pos = item * this.config.itemHeight;
-    // console.log('itemToPos', item, pos);
+    const pos = item * this._panelHeight;
     return pos;
   }
 
   posToItem(pos) {
-    const item = pos / this.config.itemHeight;
+    const item = pos / this._panelHeight;
     return item;
   }
 
   offsetToCenterItem(pos) {
-    const item = parseInt(-pos / this.config.itemHeight + parseInt(this.config.itemsToShow / 2));
+    const item = parseInt(-pos / this._panelHeight + parseInt(this.props.itemsToShow / 2));
     return item;
   }
 
@@ -153,7 +147,7 @@ class InfinitePicker extends React.Component {
 
         const spring = () => {
           const currPos = this._panY._value + this._panY._offset;
-          const target = round(currPos, this.config.itemHeight);
+          const target = round(currPos, this._panelHeight);
           Animated.spring(this._panY, {
             toValue: target - this._panY._offset,
           }).start(/*this.setCurrentVal.bind(this)*/);
@@ -172,7 +166,7 @@ class InfinitePicker extends React.Component {
 
         const currPos = this._panY._value + this._panY._offset;
         const vy = gestureState.vy;
-        const target = round(currPos + vy * Math.abs(vy) * 300, this.config.itemHeight);
+        const target = round(currPos + vy * Math.abs(vy) * 300, this._panelHeight);
         Animated.timing(this._panY, {
             toValue: target - this._panY._offset,
             easing: Easing.out(Easing.poly(5)),
@@ -191,13 +185,14 @@ class InfinitePicker extends React.Component {
 
   render() {
     return (
-      <View style={{
-        height: this.config.height,
-        width: this.config.width,
-        borderWidth: 1,
-        borderColor: 'gray',
-        overflow: 'hidden',
-      }} {...this._panResponder.panHandlers}>
+      <View style={[
+        {
+          height: this.props.height,
+          width: this.props.width,
+          overflow: 'hidden',
+        },
+        this.props.style || {},
+      ]} {...this._panResponder.panHandlers}>
         <Animated.View style={{
           position: 'absolute',
           top: this._panY,
@@ -206,14 +201,14 @@ class InfinitePicker extends React.Component {
                 <Animated.View key={idx} style={{
                   flex: 1,
                   flexDirection: 'row',
-                  height: this.config.itemHeight,
+                  height: this._panelHeight,
                   alignItems: 'center',
                   borderTopWidth: 1,
                   borderColor: '#cccccc',
                   position: 'absolute',
                   backgroundColor: 'red',
                   top: this._itemPos[idx],
-                  width: this.config.width,
+                  width: this.props.width,
 
                 }}>
                   <PickerPanel ref={e => {
@@ -230,11 +225,21 @@ class InfinitePicker extends React.Component {
   }
 }
 
+InfinitePicker.defaultProps = {
+  width: 360,
+  height: 400,
+  itemsToShow: 5,
+};
+
 export default class demo extends Component {
   render() {
     return (
         <View style={ styles.container }>
           <InfinitePicker
+            style={{
+              borderWidth: 1,
+              borderColor: 'gray',
+            }}
             panelRenderer={(i) => (<Text>Item = {i}</Text>)}/>
         </View>
         );
