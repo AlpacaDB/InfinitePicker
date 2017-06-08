@@ -39,6 +39,20 @@ const range = (start, end, interval=1) => {
     return ret;
   };
 
+class PickerPanel extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = {
+      itemNo: null,
+    };
+  }
+
+  render() {
+    const renderer = this.props.renderer || ((itemNo) => (<Text>{itemNo}</Text>));
+    return renderer(this.state.itemNo);
+  }
+}
+
 class InfinitePicker extends React.Component {
   constructor(props) {
     super(props);
@@ -72,12 +86,16 @@ class InfinitePicker extends React.Component {
         const pos = this.itemToPos(eachItem);
         if (this._itemPos[idx]._value != pos) {
           this._itemPos[idx].setValue(pos);
+          if (this._panels[idx]) {
+            this._panels[idx].setState({ itemNo: eachItem });
+          }
         }
       });
     };
     this._itemPos = range(0, this.state.bufferSize).map(idx => (
       new Animated.Value(0)
     ));
+    this._panels = new Array(this.bufferSize);
     updatePanels(this._panY._value);
 
     this._panY.addListener(ev => updatePanels(ev.value));
@@ -91,6 +109,11 @@ class InfinitePicker extends React.Component {
     const pos = item * this.config.itemHeight;
     // console.log('itemToPos', item, pos);
     return pos;
+  }
+
+  posToItem(pos) {
+    const item = pos / this.config.itemHeight;
+    return item;
   }
 
   offsetToCenterItem(pos) {
@@ -148,36 +171,21 @@ class InfinitePicker extends React.Component {
         }
 
         const currPos = this._panY._value + this._panY._offset;
-        const target = round(currPos + gestureState.vy * 300, this.config.itemHeight);
+        const vy = gestureState.vy;
+        const target = round(currPos + vy * Math.abs(vy) * 300, this.config.itemHeight);
         Animated.timing(this._panY, {
             toValue: target - this._panY._offset,
             easing: Easing.out(Easing.poly(5)),
             duration: 750,
-          }).start(/*this.setCurrentVal.bind(this)*/);
-        //const targetVal = this.posToItem(target);
-        //let newBufferSize;
-        //if (this.state.currentItem + this.state.bufferSize < targetVal) {
-        //  newBufferSize = (targetVal - this.state.currentVal) * 2
-        //}
-        //if (this.state.currentVal - this.state.bufferSize > targetVal) {
-        //  newBufferSize = (this.state.currentVal - targetVal) * 2;
-        //}
-        //if (newBufferSize) {
-        //  console.log('new buffer size', newBufferSize);
-        //  this.setState({
-        //    bufferSize: newBufferSize,
-        //  });
-        //}
+          }).start();
       },
       onPanResponderTerminate: (evt, gestureState) => {
         // Another component has become the responder, so this gesture
         // should be cancelled
       },
-      onShouldBlockNativeResponder: (evt, gestureState) => {
-        // Returns whether this component should block native components from becoming the JS
-        // responder. Returns true by default. Is currently only supported on android.
-        return true;
-      },
+      // Returns whether this component should block native components from becoming the JS
+      // responder. Returns true by default. Is currently only supported on android.
+      onShouldBlockNativeResponder: (evt, gestureState) => true,
     });
   }
 
@@ -208,7 +216,11 @@ class InfinitePicker extends React.Component {
                   width: this.config.width,
 
                 }}>
-                  <Text>{idx}</Text>
+                  <PickerPanel ref={e => {
+                    this._panels[idx] = e;
+                    this._panels[idx].setState({
+                      itemNo: this.posToItem(this._itemPos[idx]._value), });
+                  }} renderer={this.props.panelRenderer}/>
                 </Animated.View>
              ))
             }
@@ -222,7 +234,8 @@ export default class demo extends Component {
   render() {
     return (
         <View style={ styles.container }>
-          <InfinitePicker/>
+          <InfinitePicker
+            panelRenderer={(i) => (<Text>Item = {i}</Text>)}/>
         </View>
         );
   }
